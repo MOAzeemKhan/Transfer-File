@@ -10,6 +10,7 @@ const io = socketIo(server);
 
 // Store room data (room name, password, and users)
 const rooms = {};
+let onlineUsers = 0;  // Track global online user count
 
 // Set up multer storage engine for file uploads
 const storage = multer.diskStorage({
@@ -44,6 +45,10 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Handle socket connection
 io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id}`);
+  onlineUsers++;  // Increment global online user count
+
+  // Send the updated online user count to all clients
+  io.emit('user count', onlineUsers);
 
   // Send available rooms to the client
   socket.emit('rooms available', rooms);
@@ -100,6 +105,10 @@ io.on('connection', (socket) => {
   // Handle disconnection
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${socket.id}`);
+    onlineUsers--;  // Decrement global online user count
+
+    // Send the updated online user count to all clients
+    io.emit('user count', onlineUsers);
 
     // Remove the user from rooms
     for (const roomName in rooms) {
