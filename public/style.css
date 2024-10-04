@@ -1,6 +1,9 @@
+/* Discord-like Theme */
+
 body {
-  font-family: Arial, sans-serif;
-  background-color: #f4f4f4;
+  font-family: 'Helvetica Neue', sans-serif;
+  background-color: #2C2F33;
+  color: white;
   margin: 0;
   padding: 0;
   display: flex;
@@ -15,11 +18,16 @@ body {
   top: 20px;
   right: 20px;
   z-index: 2;
+  background-color: #7289DA;
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 5px;
 }
 
 .navbar {
   width: 250px;
-  background-color: #333;
+  background-color: #23272A;
   color: white;
   display: flex;
   flex-direction: column;
@@ -39,10 +47,11 @@ body {
 
 .navbar h2 {
   margin-bottom: 20px;
+  font-weight: bold;
 }
 
 .navbar button {
-  background-color: #4CAF50;
+  background-color: #7289DA;
   color: white;
   border: none;
   padding: 10px;
@@ -59,19 +68,21 @@ body {
   list-style-type: none;
   padding: 0;
   margin: 0;
+  color: white;
 }
 
 .room-list li {
   padding: 10px;
   text-align: center;
   cursor: pointer;
-  background-color: #444;
+  background-color: #3C3F44;
   margin-bottom: 10px;
   border-radius: 5px;
+  transition: background-color 0.2s;
 }
 
 .room-list li:hover {
-  background-color: #555;
+  background-color: #5865F2;
 }
 
 .container {
@@ -82,11 +93,14 @@ body {
   align-items: center;
   padding: 20px;
   width: 100%;
+  background-color: #2C2F33;
+  color: white;
 }
 
 .container h1 {
   text-align: center;
   margin-bottom: 20px;
+  color: white;
 }
 
 input[type="text"],
@@ -98,42 +112,48 @@ textarea {
   padding: 10px;
   margin: 10px 0;
   font-size: 1em;
+  background-color: #40444B;
+  border: none;
+  color: white;
+  border-radius: 5px;
 }
 
 .messages {
-  margin-top: 20px;
+  margin-top: 10px;
   width: 100%;
   max-width: 600px;
-  height: 300px;
-  overflow-y: auto;
-  border: 1px solid #ddd;
+  height: 200px;  /* Reduced height for notification area */
+  background-color: #40444B;
   padding: 10px;
-  background-color: white;
+  border-radius: 10px;
+  overflow-y: auto;
+  color: white;
 }
 
 .message {
-  margin-bottom: 15px;
-  padding: 10px;
-  border-radius: 8px;
-  background-color: #f1f1f1;
+  margin-bottom: 10px;
+  padding: 8px;
+  border-radius: 5px;
+  background-color: #3C3F44;
+  color: white;
 }
 
 .message strong {
   display: block;
   font-size: 0.9em;
-  color: #555;
+  color: #7289DA;
   margin-bottom: 5px;
 }
 
 .file-link {
   display: block;
-  color: blue;
+  color: #7289DA;
   text-decoration: underline;
 }
 
 button {
   padding: 10px 15px;
-  background-color: #4CAF50;
+  background-color: #7289DA;
   color: white;
   border: none;
   cursor: pointer;
@@ -141,12 +161,41 @@ button {
   font-size: 1em;
 }
 
-/* Make central area scrollable */
-.scrollable {
-  width: 100%;
-  max-width: 600px;
-  overflow-y: auto;
-  max-height: 150px; /* Limit height to make area scrollable on mobile */
+.inputs {
   display: flex;
   flex-direction: column;
+  width: 100%;
+  max-width: 600px;
+  gap: 10px;
+}
+
+/* Remove scrollbar, but maintain responsive layout */
+textarea {
+  height: 60px; /* Increase height for better visibility */
+  resize: none; /* Prevent text area resizing */
+  overflow-y: hidden; /* Remove scrollbar functionality */
+}
+
+/* Adjust for mobile */
+@media only screen and (max-width: 600px) {
+  input[type="text"],
+  input[type="password"],
+  input[type="file"],
+  textarea {
+    font-size: 1.2em;
+    padding: 15px;
+  }
+
+  button {
+    font-size: 1.2em;
+    padding: 12px 20px;
+  }
+
+  .messages {
+    height: 150px; /* Reduce the notification area height further on mobile */
+  }
+
+  textarea {
+    height: 80px; /* Increase text area height for better mobile input */
+  }
 }

@@ -9,7 +9,7 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
-// Store room data (room name, password, users, and files associated with each room)
+// Store room data (room name, password, users, history, and files)
 const rooms = {};
 let onlineUsers = 0;  // Track global online user count
 
@@ -31,17 +31,21 @@ app.post('/upload', upload.single('file'), (req, res) => {
   const fileName = req.file.originalname;
   const roomName = req.body.roomName;
 
-  // Store the file path associated with the room
-  if (!rooms[roomName].files) {
-    rooms[roomName].files = [];
+  // Store the file and message in room history
+  if (rooms[roomName]) {
+    rooms[roomName].history.push({
+      type: 'file',
+      senderId: req.body.senderId,
+      fileName,
+      fileUrl,
+      filePath: path.join(__dirname, `uploads/${req.file.filename}`)
+    });
+    io.to(roomName).emit('file shared', {
+      senderId: req.body.senderId,
+      fileName,
+      fileUrl
+    });
   }
-  rooms[roomName].files.push(path.join(__dirname, `uploads/${req.file.filename}`));
-
-  io.to(roomName).emit('file shared', {
-    senderId: req.body.senderId,
-    fileName,
-    fileUrl,
-  });
 
   res.json({ fileUrl });
 });
@@ -70,8 +74,8 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Create the room with the password
-    rooms[roomName] = { password, users: [socket.id], creator: socket.id, files: [] };
+    // Create the room with the password, track users, and store history
+    rooms[roomName] = { password, users: [socket.id], creator: socket.id, history: [] };
     socket.join(roomName);
     io.emit('rooms available', rooms);  // Update all clients about the new room
     socket.emit('room created', roomName);  // Notify the client they created the room
@@ -93,47 +97,59 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Join the room
+    // Join the room and send room history to the user
     socket.join(roomName);
     rooms[roomName].users.push(socket.id);
-    socket.emit('room joined', roomName);  // Notify the client they joined the room
+    socket.emit('room joined', roomName);
+
+    // Send the room's history to the user who joined
+    socket.emit('room history', rooms[roomName].history);
   });
 
-  // Handle room ending
-  socket.on('end room', (roomName) => {
-    // Only allow the room creator to end the room
-    if (rooms[roomName] && rooms[roomName].creator === socket.id) {
-      // Notify all users in the room that the room is ending
-      io.to(roomName).emit('room ended', roomName);
-
-      // Delete files associated with the room
-      if (rooms[roomName].files) {
-        rooms[roomName].files.forEach((filePath) => {
-          fs.unlink(filePath, (err) => {
-            if (err) {
-              console.error(`Error deleting file: ${filePath}`, err);
-            }
-          });
-        });
-      }
-
-      // Remove the room
-      delete rooms[roomName];
-
-      // Update all clients about available rooms
-      io.emit('rooms available', rooms);
-    } else {
-      socket.emit('room error', 'Only the room creator can end the room.');
-    }
-  });
-
-  // Handle text sharing in the room
+  // Handle text sharing in the room and add to history
   socket.on('share text', (data) => {
     const { roomName, text } = data;
+
+    // Save the text message to the room's history
+    rooms[roomName].history.push({
+      type: 'text',
+      senderId: socket.id,
+      text
+    });
+
+    // Broadcast the message to all users in the room
     io.to(roomName).emit('text shared', {
       senderId: socket.id,
-      text,
+      text
     });
+  });
+
+  // Handle file deletion by the room creator
+  socket.on('delete file', (roomName, fileUrl) => {
+    if (rooms[roomName] && rooms[roomName].creator === socket.id) {
+      // Find and remove the file from history
+      const fileIndex = rooms[roomName].history.findIndex(item => item.type === 'file' && item.fileUrl === fileUrl);
+
+      if (fileIndex !== -1) {
+        const filePath = rooms[roomName].history[fileIndex].filePath;
+
+        // Delete the file from the file system
+        fs.unlink(filePath, (err) => {
+          if (err) {
+            console.error(`Error deleting file: ${filePath}`, err);
+            return;
+          }
+
+          // Remove the file from the room history
+          rooms[roomName].history.splice(fileIndex, 1);
+
+          // Notify all users in the room that the file has been deleted
+          io.to(roomName).emit('file deleted', fileUrl);
+        });
+      }
+    } else {
+      socket.emit('room error', 'Only the room creator can delete files.');
+    }
   });
 
   // Handle disconnection

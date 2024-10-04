@@ -60,25 +60,48 @@ socket.on('rooms available', (rooms) => {
 socket.on('room created', (roomName) => {
   currentRoom = roomName;
   sharedContent.innerHTML = `<p>You have created and joined the room: ${roomName}</p>`;
-
-  // Display the "End Room" button for the creator
-  if (isRoomCreator) {
-    const endRoomButton = document.createElement('button');
-    endRoomButton.textContent = 'End Room';
-    endRoomButton.id = 'endRoomButton';
-    endRoomButton.onclick = () => {
-      if (confirm(`Are you sure you want to end the room ${roomName}?`)) {
-        socket.emit('end room', roomName);
-      }
-    };
-    sharedContent.appendChild(endRoomButton);
-  }
 });
 
-// Handle room join
+// Handle room join and display room history
 socket.on('room joined', (roomName) => {
   currentRoom = roomName;
   sharedContent.innerHTML = `<p>You have joined the room: ${roomName}</p>`;
+});
+
+// Load room history when joining
+socket.on('room history', (history) => {
+  history.forEach(item => {
+    if (item.type === 'text') {
+      const messageElement = document.createElement('div');
+      messageElement.classList.add('message');
+      messageElement.innerHTML = `
+        <strong>User ${item.senderId.substring(0, 5)}:</strong>
+        <p>${item.text}</p>
+      `;
+      sharedContent.appendChild(messageElement);
+    } else if (item.type === 'file') {
+      const messageElement = document.createElement('div');
+      messageElement.classList.add('message');
+      messageElement.innerHTML = `
+        <strong>User ${item.senderId.substring(0, 5)}:</strong>
+        <a href="${item.fileUrl}" class="file-link" download>${item.fileName}</a>
+      `;
+
+      // Add delete button if the user is the creator
+      if (isRoomCreator) {
+        const deleteButton = document.createElement('button');
+        deleteButton.textContent = 'Delete File';
+        deleteButton.onclick = () => {
+          if (confirm(`Are you sure you want to delete this file: ${item.fileName}?`)) {
+            socket.emit('delete file', currentRoom, item.fileUrl);
+          }
+        };
+        messageElement.appendChild(deleteButton);
+      }
+
+      sharedContent.appendChild(messageElement);
+    }
+  });
 });
 
 // Handle text sharing
@@ -103,28 +126,6 @@ socket.on('text shared', (data) => {
   sharedContent.scrollTop = sharedContent.scrollHeight;  // Auto scroll
 });
 
-// Handle file upload
-const fileForm = document.getElementById('fileForm');
-fileForm.addEventListener('submit', (e) => {
-  e.preventDefault();
-  const file = document.getElementById('fileInput').files[0];
-  if (file && currentRoom) {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('senderId', socket.id);
-    formData.append('roomName', currentRoom);
-
-    fetch('/upload', {
-      method: 'POST',
-      body: formData,
-    })
-    .then(response => response.json())
-    .then(data => {
-      document.getElementById('fileInput').value = '';  // Clear file input
-    });
-  }
-});
-
 // Display incoming file messages
 socket.on('file shared', (data) => {
   const messageElement = document.createElement('div');
@@ -133,16 +134,30 @@ socket.on('file shared', (data) => {
     <strong>User ${data.senderId.substring(0, 5)}:</strong>
     <a href="${data.fileUrl}" class="file-link" download>${data.fileName}</a>
   `;
+
+  // Add delete button if the user is the creator
+  if (isRoomCreator) {
+    const deleteButton = document.createElement('button');
+    deleteButton.textContent = 'Delete File';
+    deleteButton.onclick = () => {
+      if (confirm(`Are you sure you want to delete this file: ${data.fileName}?`)) {
+        socket.emit('delete file', currentRoom, data.fileUrl);
+      }
+    };
+    messageElement.appendChild(deleteButton);
+  }
+
   sharedContent.appendChild(messageElement);
   sharedContent.scrollTop = sharedContent.scrollHeight;  // Auto scroll
 });
 
-// Handle room end event
-socket.on('room ended', (roomName) => {
-  alert(`Room "${roomName}" has been ended by the creator.`);
-  sharedContent.innerHTML = '';  // Clear the room's content
-  currentRoom = '';  // Clear the current room
-  isRoomCreator = false;  // Reset creator status
+// Handle file deletion
+socket.on('file deleted', (fileUrl) => {
+  // Remove the deleted file from the UI
+  const fileElements = document.querySelectorAll(`a[href="${fileUrl}"]`);
+  fileElements.forEach(element => {
+    element.parentElement.remove();  // Remove the message element containing the file
+  });
 });
 
 // Handle room errors
