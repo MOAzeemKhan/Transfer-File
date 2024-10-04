@@ -3,13 +3,12 @@ const http = require('http');
 const socketIo = require('socket.io');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
-// Set the storage engine for file uploads
+// Set up multer storage engine for file uploads
 const storage = multer.diskStorage({
   destination: './uploads',
   filename: (req, file, cb) => {
@@ -21,30 +20,39 @@ const upload = multer({ storage });
 // Serve static files
 app.use(express.static('public'));
 
-// Handle file upload via POST request
+// Handle file uploads and broadcast file link
 app.post('/upload', upload.single('file'), (req, res) => {
-  const filePath = `/uploads/${req.file.filename}`;
+  const fileUrl = `/uploads/${req.file.filename}`;
+  const fileName = req.file.originalname;
+  const senderId = req.body.senderId;  // Get the sender's ID
+
   io.emit('file shared', {
-    fileName: req.file.originalname,
-    fileUrl: filePath,
+    senderId,
+    fileName,
+    fileUrl,
   });
-  res.json({ fileUrl: filePath });
+
+  res.json({ fileUrl });
 });
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Handle copied text sharing
+// Handle text sharing
 io.on('connection', (socket) => {
-  console.log('A user connected');
+  console.log(`User connected: ${socket.id}`);
 
-  // Broadcast shared text to all connected clients
+  // Broadcast text message to all users
   socket.on('share text', (text) => {
-    io.emit('text shared', text);
+    io.emit('text shared', {
+      senderId: socket.id,
+      text,
+    });
   });
 
+  // When a user disconnects
   socket.on('disconnect', () => {
-    console.log('A user disconnected');
+    console.log(`User disconnected: ${socket.id}`);
   });
 });
 
