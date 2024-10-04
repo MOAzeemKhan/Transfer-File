@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>File & Text Sharing App</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    .container {
+      width: 80%;
+      max-width: 600px;
+      margin: 20px auto;
+      padding: 20px;
+      background-color: white;
+      box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+      border-radius: 8px;
+    }
+    h1 {
+      text-align: center;
+    }
+    input[type="file"],
+    textarea {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      font-size: 1em;
+    }
+    .shared-content {
+      margin-top: 20px;
+    }
+    .file-link {
+      margin-top: 10px;
+    }
+    textarea {
+      height: 100px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Share Files and Text</h1>
+
+    <!-- File Upload Form -->
+    <form id="fileForm" enctype="multipart/form-data">
+      <input type="file" id="fileInput" name="file" />
+      <button type="submit">Upload File</button>
+    </form>
+
+    <!-- Text Sharing -->
+    <textarea id="textInput" placeholder="Type or paste text here..."></textarea>
+    <button id="shareTextButton">Share Text</button>
+
+    <!-- Shared Content Display -->
+    <div class="shared-content" id="sharedContent"></div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+
+    // Handle file upload
+    const fileForm = document.getElementById('fileForm');
+    const fileInput = document.getElementById('fileInput');
+    const sharedContent = document.getElementById('sharedContent');
+
+    fileForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const file = fileInput.files[0];
+      if (file) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        fetch('/upload', {
+          method: 'POST',
+          body: formData,
+        })
+          .then(response => response.json())
+          .then(data => {
+            sharedContent.innerHTML += `<p>File shared: <a href="${data.fileUrl}" download>${file.name}</a></p>`;
+            fileInput.value = '';  // Clear input after upload
+          });
+      }
+    });
+
+    // Handle text sharing
+    const textInput = document.getElementById('textInput');
+    const shareTextButton = document.getElementById('shareTextButton');
+
+    shareTextButton.addEventListener('click', () => {
+      const text = textInput.value.trim();
+      if (text) {
+        socket.emit('share text', text);
+        textInput.value = '';  // Clear text area after sharing
+      }
+    });
+
+    // Display shared text
+    socket.on('text shared', (text) => {
+      sharedContent.innerHTML += `<p>Text shared: ${text}</p>`;
+    });
+
+    // Display shared files
+    socket.on('file shared', (data) => {
+      sharedContent.innerHTML += `<p>File shared: <a href="${data.fileUrl}" download>${data.fileName}</a></p>`;
+    });
+  </script>
+</body>
+</html>
