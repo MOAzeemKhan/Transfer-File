@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Real-Time File & Text Sharing</title>
+  <title>Room-Based Sharing App</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -28,6 +28,8 @@
     h1 {
       text-align: center;
     }
+    input[type="text"],
+    input[type="password"],
     input[type="file"],
     textarea {
       width: 100%;
@@ -63,59 +65,91 @@
 </head>
 <body>
   <div class="container">
-    <h1>File & Text Sharing</h1>
+    <h1>Room-Based File & Text Sharing</h1>
 
-    <!-- File Upload Form -->
+    <!-- Create Room Form -->
+    <input type="text" id="roomNameInput" placeholder="Room Name" />
+    <input type="password" id="roomPasswordInput" placeholder="Room Password" />
+    <button id="createRoomButton">Create Room</button>
+
+    <!-- Available Rooms -->
+    <h2>Available Rooms</h2>
+    <ul id="roomList"></ul>
+
+    <!-- Join Room Form -->
+    <input type="text" id="joinRoomName" placeholder="Enter Room Name to Join" />
+    <input type="password" id="joinRoomPassword" placeholder="Enter Room Password" />
+    <button id="joinRoomButton">Join Room</button>
+
+    <!-- Shared Content -->
+    <div class="messages" id="sharedContent"></div>
+
+    <!-- Text Sharing and File Upload (Visible only after joining/creating a room) -->
+    <textarea id="textInput" placeholder="Type or paste text here..."></textarea>
+    <button id="shareTextButton">Share Text</button>
+
     <form id="fileForm" enctype="multipart/form-data">
       <input type="file" id="fileInput" name="file" />
       <button type="submit">Upload File</button>
     </form>
-
-    <!-- Text Sharing -->
-    <textarea id="textInput" placeholder="Type or paste text here..."></textarea>
-    <button id="shareTextButton">Share Text</button>
-
-    <!-- Shared Content Display (Chat-like) -->
-    <div class="messages" id="sharedContent"></div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
     const sharedContent = document.getElementById('sharedContent');
+    const roomList = document.getElementById('roomList');
+    let currentRoom = '';
 
-    // Handle file upload
-    const fileForm = document.getElementById('fileForm');
-    const fileInput = document.getElementById('fileInput');
-
-    fileForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const file = fileInput.files[0];
-      if (file) {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('senderId', socket.id);  // Send user ID with file
-
-        fetch('/upload', {
-          method: 'POST',
-          body: formData,
-        })
-          .then(response => response.json())
-          .then(data => {
-            fileInput.value = '';  // Clear file input
-          });
+    // Create a room
+    const createRoomButton = document.getElementById('createRoomButton');
+    createRoomButton.addEventListener('click', () => {
+      const roomName = document.getElementById('roomNameInput').value;
+      const roomPassword = document.getElementById('roomPasswordInput').value;
+      if (roomName && roomPassword) {
+        socket.emit('create room', { roomName, password: roomPassword });
       }
     });
 
-    // Handle text sharing
-    const textInput = document.getElementById('textInput');
-    const shareTextButton = document.getElementById('shareTextButton');
+    // Join a room
+    const joinRoomButton = document.getElementById('joinRoomButton');
+    joinRoomButton.addEventListener('click', () => {
+      const roomName = document.getElementById('joinRoomName').value;
+      const roomPassword = document.getElementById('joinRoomPassword').value;
+      if (roomName && roomPassword) {
+        socket.emit('join room', { roomName, password: roomPassword });
+      }
+    });
 
+    // Display available rooms
+    socket.on('rooms available', (rooms) => {
+      roomList.innerHTML = '';
+      for (const roomName in rooms) {
+        const li = document.createElement('li');
+        li.textContent = roomName;
+        roomList.appendChild(li);
+      }
+    });
+
+    // Handle room creation
+    socket.on('room created', (roomName) => {
+      currentRoom = roomName;
+      sharedContent.innerHTML = `<p>You have created and joined the room: ${roomName}</p>`;
+    });
+
+    // Handle room join
+    socket.on('room joined', (roomName) => {
+      currentRoom = roomName;
+      sharedContent.innerHTML = `<p>You have joined the room: ${roomName}</p>`;
+    });
+
+    // Handle text sharing
+    const shareTextButton = document.getElementById('shareTextButton');
     shareTextButton.addEventListener('click', () => {
-      const text = textInput.value.trim();
-      if (text) {
-        socket.emit('share text', text);  // Emit text message
-        textInput.value = '';  // Clear text area after sharing
+      const text = document.getElementById('textInput').value;
+      if (text && currentRoom) {
+        socket.emit('share text', { roomName: currentRoom, text });
+        document.getElementById('textInput').value = '';
       }
     });
 
@@ -131,6 +165,28 @@
       sharedContent.scrollTop = sharedContent.scrollHeight;  // Auto scroll
     });
 
+    // Handle file upload
+    const fileForm = document.getElementById('fileForm');
+    fileForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const file = document.getElementById('fileInput').files[0];
+      if (file && currentRoom) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('senderId', socket.id);
+        formData.append('roomName', currentRoom);
+
+        fetch('/upload', {
+          method: 'POST',
+          body: formData,
+        })
+        .then(response => response.json())
+        .then(data => {
+          document.getElementById('fileInput').value = '';  // Clear file input
+        });
+      }
+    });
+
     // Display incoming file messages
     socket.on('file shared', (data) => {
       const messageElement = document.createElement('div');
@@ -141,6 +197,11 @@
       `;
       sharedContent.appendChild(messageElement);
       sharedContent.scrollTop = sharedContent.scrollHeight;  // Auto scroll
+    });
+
+    // Handle room errors
+    socket.on('room error', (message) => {
+      alert(message);  // Display error message to the user
     });
   </script>
 </body>
