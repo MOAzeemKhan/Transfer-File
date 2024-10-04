@@ -7,8 +7,11 @@
   <link rel="stylesheet" href="style.css"> <!-- Link to CSS file -->
 </head>
 <body>
-  <!-- Right Side Vertical Navbar -->
-  <div class="navbar">
+  <!-- Slideable Navbar Toggle Button -->
+  <button id="toggleNavbarButton" class="toggle-btn">&#9776;</button> <!-- Hamburger Menu Icon -->
+
+  <!-- Right Slideable Navbar -->
+  <div id="navbar" class="navbar">
     <button id="createRoomButton">+</button> <!-- Plus sign for creating a new room -->
     <h2>Online Rooms</h2>
     <ul class="room-list" id="roomList">
@@ -31,14 +34,16 @@
     <!-- Shared Content -->
     <div class="messages" id="sharedContent"></div>
 
-    <!-- Text Sharing and File Upload (Visible only after joining/creating a room) -->
-    <textarea id="textInput" placeholder="Type or paste text here..."></textarea>
-    <button id="shareTextButton">Share Text</button>
+    <!-- Text Sharing and File Upload (Scrollable Area) -->
+    <div class="scrollable">
+      <textarea id="textInput" placeholder="Type or paste text here..."></textarea>
+      <button id="shareTextButton">Share Text</button>
 
-    <form id="fileForm" enctype="multipart/form-data">
-      <input type="file" id="fileInput" name="file" />
-      <button type="submit">Upload File</button>
-    </form>
+      <form id="fileForm" enctype="multipart/form-data">
+        <input type="file" id="fileInput" name="file" />
+        <button type="submit">Upload File</button>
+      </form>
+    </div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>

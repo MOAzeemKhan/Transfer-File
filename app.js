@@ -3,12 +3,13 @@ const http = require('http');
 const socketIo = require('socket.io');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');  // To delete files
 
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
-// Store room data (room name, password, and users)
+// Store room data (room name, password, users, and files associated with each room)
 const rooms = {};
 let onlineUsers = 0;  // Track global online user count
 
@@ -28,7 +29,13 @@ app.use(express.static('public'));
 app.post('/upload', upload.single('file'), (req, res) => {
   const fileUrl = `/uploads/${req.file.filename}`;
   const fileName = req.file.originalname;
-  const roomName = req.body.roomName;  // Room name is passed along with the form
+  const roomName = req.body.roomName;
+
+  // Store the file path associated with the room
+  if (!rooms[roomName].files) {
+    rooms[roomName].files = [];
+  }
+  rooms[roomName].files.push(path.join(__dirname, `uploads/${req.file.filename}`));
 
   io.to(roomName).emit('file shared', {
     senderId: req.body.senderId,
@@ -64,9 +71,8 @@ io.on('connection', (socket) => {
     }
 
     // Create the room with the password
-    rooms[roomName] = { password, users: [] };
+    rooms[roomName] = { password, users: [socket.id], creator: socket.id, files: [] };
     socket.join(roomName);
-    rooms[roomName].users.push(socket.id);
     io.emit('rooms available', rooms);  // Update all clients about the new room
     socket.emit('room created', roomName);  // Notify the client they created the room
   });
@@ -91,6 +97,34 @@ io.on('connection', (socket) => {
     socket.join(roomName);
     rooms[roomName].users.push(socket.id);
     socket.emit('room joined', roomName);  // Notify the client they joined the room
+  });
+
+  // Handle room ending
+  socket.on('end room', (roomName) => {
+    // Only allow the room creator to end the room
+    if (rooms[roomName] && rooms[roomName].creator === socket.id) {
+      // Notify all users in the room that the room is ending
+      io.to(roomName).emit('room ended', roomName);
+
+      // Delete files associated with the room
+      if (rooms[roomName].files) {
+        rooms[roomName].files.forEach((filePath) => {
+          fs.unlink(filePath, (err) => {
+            if (err) {
+              console.error(`Error deleting file: ${filePath}`, err);
+            }
+          });
+        });
+      }
+
+      // Remove the room
+      delete rooms[roomName];
+
+      // Update all clients about available rooms
+      io.emit('rooms available', rooms);
+    } else {
+      socket.emit('room error', 'Only the room creator can end the room.');
+    }
   });
 
   // Handle text sharing in the room

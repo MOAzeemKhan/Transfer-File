@@ -8,15 +8,33 @@ body {
   overflow: hidden;
 }
 
+.toggle-btn {
+  font-size: 30px;
+  cursor: pointer;
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 2;
+}
+
 .navbar {
-  width: 200px;
+  width: 250px;
   background-color: #333;
   color: white;
   display: flex;
   flex-direction: column;
   align-items: center;
   padding: 20px 0;
-  box-shadow: 2px 0px 5px rgba(0, 0, 0, 0.1);
+  position: fixed;
+  right: -250px;  /* Hidden off-screen initially */
+  height: 100%;
+  transition: right 0.3s ease;
+  box-shadow: -2px 0px 5px rgba(0, 0, 0, 0.1);
+  z-index: 1;
+}
+
+.navbar.active {
+  right: 0; /* Slide-in effect */
 }
 
 .navbar h2 {
@@ -63,6 +81,7 @@ body {
   justify-content: center;
   align-items: center;
   padding: 20px;
+  width: 100%;
 }
 
 .container h1 {
@@ -120,4 +139,14 @@ button {
   cursor: pointer;
   border-radius: 5px;
   font-size: 1em;
+}
+
+/* Make central area scrollable */
+.scrollable {
+  width: 100%;
+  max-width: 600px;
+  overflow-y: auto;
+  max-height: 150px; /* Limit height to make area scrollable on mobile */
+  display: flex;
+  flex-direction: column;
 }
